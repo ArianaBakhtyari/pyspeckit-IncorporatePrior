@@ -7,7 +7,10 @@ Generic SpectralModel wrapper
 Module API
 ^^^^^^^^^^
 """
+from matplotlib import pyplot as plt
 import numpy as np
+import scipy
+import scipy.stats
 from pyspeckit.mpfit import mpfit,mpfitException
 from pyspeckit.spectrum.parinfo import ParinfoList,Parinfo
 import copy
@@ -18,6 +21,8 @@ from . import mpfit_messages
 from pyspeckit.specwarnings import warn
 import itertools
 import operator
+from scipy.stats import multivariate_normal
+from scipy.stats import sem
 import six
 try:
     from collections import OrderedDict
@@ -856,17 +861,29 @@ class SpectralModel(fitter.SimpleFitter):
                 except ValueError:
                     return -np.inf
         model = self.n_modelfunc(pars, **self.modelfunc_kwargs)(xarr)
-
         difference = np.abs(data-model)
-
         # prob = 1/(2*np.pi)**0.5/error * exp(-difference**2/(2.*error**2))
 
         #logprob = np.log(1./(2.*np.pi)**0.5/error) * (-difference**2/(2.*error**2))
         logprob = (-difference**2/(2.*error**2))
 
         totallogprob = np.sum(logprob)
-
         return totallogprob
+
+    def priorfn(self, priorvals, pars=None):
+        """
+        Returns the multivariate normal prior of the model.
+        """
+        #if pars is None:
+           # pars = self.parinfo
+        #else:
+        #if "gaussian": 
+        priorvals["steps"]= priorvals["steps"]+1
+        #delete this
+        print(priorvals["steps"])
+        prior=scipy.stats.multivariate_normal.pdf(pars , mean=priorvals["mean"], cov=priorvals["cov"])
+        return prior
+
 
     def get_emcee_sampler(self, xarr, data, error, **kwargs):
         """
@@ -898,13 +915,14 @@ class SpectralModel(fitter.SimpleFitter):
 
         def probfunc(pars):
             return self.logp(xarr, data, error, pars=pars)
+        
 
         raise NotImplementedError("emcee's metropolis-hastings sampler is not implemented; use pymc")
         sampler = emcee.MHSampler(self.npars*self.npeaks+self.vheight, probfunc, **kwargs)
 
         return sampler
 
-    def get_emcee_ensemblesampler(self, xarr, data, error, nwalkers, **kwargs):
+    def get_emcee_ensemblesampler(self, xarr, data, error, nwalkers, priorvals, **kwargs):
         """
         Get an emcee walker ensemble for the data & model
 
@@ -936,8 +954,9 @@ class SpectralModel(fitter.SimpleFitter):
             return
 
         def probfunc(pars):
-            return self.logp(xarr, data, error, pars=pars)
-
+            return self.logp(xarr, data, error, pars=pars) + np.log(self.priorfn(priorvals, pars=pars))
+    
+      
         sampler = emcee.EnsembleSampler(nwalkers,
                                         self.npars*self.npeaks+self.vheight,
                                         probfunc, **kwargs)

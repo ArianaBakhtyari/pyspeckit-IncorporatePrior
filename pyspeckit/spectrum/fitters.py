@@ -1929,7 +1929,7 @@ class Specfit(interactive.Interactive):
         else:
             raise AttributeError("Fitter %r does not have pymc implemented." % self.fitter)
 
-    def get_emcee(self, nwalkers=None, **kwargs):
+    def get_emcee(self, priorvals, nwalkers=None,  **kwargs):
         """
         Get an emcee walker ensemble for the data & model using the current model type
 
@@ -1959,7 +1959,7 @@ class Specfit(interactive.Interactive):
             nwalkers = (self.fitter.npars * self.fitter.npeaks + self.fitter.vheight) * 2
             emc = self.fitter.get_emcee_ensemblesampler(self.Spectrum.xarr,
                                                         self.spectofit,
-                                                        self.errspec, nwalkers)
+                                                        self.errspec, nwalkers, priorvals)
             emc.nwalkers = nwalkers
             emc.p0 = np.array([self.parinfo.values] * emc.nwalkers)
             return emc
