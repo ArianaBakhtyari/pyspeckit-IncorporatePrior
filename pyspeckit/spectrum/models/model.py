@@ -955,11 +955,12 @@ class SpectralModel(fitter.SimpleFitter):
 
         def probfunc(pars):
             return self.logp(xarr, data, error, pars=pars) + np.log(self.priorfn(priorvals, pars=pars))
-    
-      
+        filename='mcmcresults.h5'
+        backend= emcee.backends.HDFBackend(filename)
+        backend.reset(nwalkers, self.npars*self.npeaks+self.vheight)
         sampler = emcee.EnsembleSampler(nwalkers,
                                         self.npars*self.npeaks+self.vheight,
-                                        probfunc, **kwargs)
+                                        probfunc, backend=backend, **kwargs)
 
         return sampler
 
